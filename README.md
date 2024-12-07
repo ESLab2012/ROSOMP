@@ -113,7 +113,7 @@ colcon build --allow-overriding rcl rclcpp
 source install/local_setup.sh
 ```
 
-##### 4. Run the Given Example
+##### 4. Run the Given Example.
 
 ```bash
 ros2 run intra_process_demo two_node_pipeline
