@@ -38,6 +38,7 @@ git clone https://gcc.gnu.org/git/gcc.git
 ```bash
 mkdir build && cd build
 ```
+
 ###### Configure build options
 ```bash
 # You may modify the `--prefix` option to configure the installation path of GCC.
