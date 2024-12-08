@@ -87,7 +87,7 @@ Then, download the `src` folder from this repository into the ROSOMP workspace.
 ##### 2. Replace GCC Installation Paths in Source Files.
 
 Modify the following seven files in the `/ROSOMP/src/` folder to replace the original GCC installation paths. 
-Each original GCC installation path is marked with the text "Replace with the correct path."
+Each original GCC installation path is marked with the text "Replace with the correct path".
 
 ```bash
 src/intra_process_demo/include/node_common.hpp
