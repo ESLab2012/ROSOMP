@@ -1,16 +1,16 @@
 # Overview
 This repository presents the implementation of **ROSOMP**, a framework that integrates OpenMP-based workload management directly within the ROS 2 executor. 
 By reusing executor threads and introducing unified scheduling, ROSOMP optimizes resource utilization and ensures real-time performance. 
-We developed the OMP Scheduler using the GCC 15.0.0 compiler with OpenMP 5.1 runtime support and implemented the ROSOMP Executor and OMP Orchestrator on the ROS 2 [Humble](https://docs.ros.org/en/humble/index.html) release.
+We developed the OMP Scheduler using the GCC 15.0.0 and LLVM/Clang 21.0, both of which supporting OpenMP 5.1 runtime, and implemented the OMP Arbiter on the ROS 2 [Humble](https://docs.ros.org/en/humble/index.html) release.
 
 # Getting Started
 
 ## Description
-This repository contains two fundamental parts:
+This repository contains two fundamental parts, and each part consists of two folders:
 <ul>
-<li> The libgomp module implements the OMP Scheduler based on the GCC compiler's OpenMP runtime support.</li>
-<li> There are three ROS 2 packages involved in our ROSOMP. 
-The `rcl` package and the `rclcpp` package for implementing the ROSOMP Executor and OMP Orchestrator, and `demo` code for testing the real-time performance of ROSOMP.</li>
+<li> The `libgomp` or `libomp` folder implements the OMP Scheduler by leveraging the OpenMP runtime support provided by the GCC or LLVM/Clang compilers.</li>
+<li> There are three ROS 2 packages involved in our ROSOMP: 
+The `rcl` package and the `rclcpp` package for implementing the OMP Arbiter, and `demo` code for testing the real-time performance of ROSOMP.</li>
 </ul>
 
 ## Prerequisites
@@ -72,9 +72,42 @@ which gcc
 
 ##### 4. Replace GCC Source Code.
 
-(1) Use the files from the `/ROSOMP/libgomp/` folder, namely `libgomp.map`, `omp.h.in` and `parallel.c`, to replace the corresponding original files in the `GCC/libgomp/` folder.
+(1) Use the files from the `libgomp/` folder, namely `libgomp.map`, `omp.h.in` and `parallel.c`, to replace the corresponding original files in the `GCC/libgomp/` folder.
 
 (2) After replacing the necessary files, recompile the GCC source code by repeating the compilation steps.
+
+#### LLVM Source Compilation and Replacement
+
+Instructions for downloading and building LLVM from source code can be found at [here](https://llvm.org/docs/GettingStarted.html).
+
+```bash
+# Installation and update of Cmake
+sudo snap install cmake --classic
+export PATH=/snap/bin:$PATH
+cmake --version
+
+# Download LLVM source code
+git clone https://github.com/llvm/llvm-project.git
+cd llvm-project
+
+mkdir build && cd build
+# You can modify the `-DLLVM_TARGETS_TO_BUILD` option to select build targets, and use `-DCMAKE_INSTALL_PREFIX` option to configure the LLVM installation path.
+cmake -G Ninja ../llvm \
+  -DLLVM_ENABLE_PROJECTS="clang;openmp" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DLLVM_TARGETS_TO_BUILD="X86" \
+  -DCMAKE_INSTALL_PREFIX=~/llvm-install
+# Compile and install LLVM
+ninja
+ninja install
+
+# update environment variables
+export LD_LIBRARY_PATH=/llvm-install/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH
+export CC=/llvm-install/bin/clang
+export CXX=/llvm-install/bin/clang++
+```
+
+Replace the original files in `LLVM-project/openmp/runtime/src/` with the ones from the `libomp` folder, then recompile the LLVM source code.
 
 #### ROS 2 Source Compilation
 
@@ -84,10 +117,10 @@ Create a ROS 2 workspace named `ROSOMP`.
 Detailed instructions can be found [here](https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html).
 Then, download the `src` folder from this repository into the ROSOMP workspace. 
 
-##### 2. Replace GCC Installation Paths in Source Files.
+##### 2. Replace GCC or LLVM Installation Paths in Source Files.
 
-Modify the following seven files in the `/ROSOMP/src/` folder to replace the original GCC installation paths. 
-Each original GCC installation path is marked with the text "Replace with the correct path".
+Modify the following seven files in the `/ROSOMP/src/` folder to replace the original GCC or LLVM installation paths. 
+Each original GCC or LLVM installation path is marked with the text "Replace with the correct path".
 
 ```bash
 src/intra_process_demo/include/node_common.hpp
@@ -102,6 +135,7 @@ src/rclcpp/CMakeLists.txt
 ##### 3. Build the ROS 2 Workspace.
 
 ```bash
+# Build the ROS 2 workspace with GCC
 # Source the ROS 2 setup script.
 . ~/ros2_humble/install/local_setup.sh
 # Update the environment variables.
@@ -111,16 +145,26 @@ export LD_LIBRARY_PATH=/usr/local/gcc/lib64:$LD_LIBRARY_PATH
 colcon build --allow-overriding rcl rclcpp
 # Source the local setup script after building.
 source install/local_setup.sh
+
+# Build the ROS 2 workspace with LLVM
+. ~/ros2_humble/install/local_setup.sh
+export PATH=/snap/bin:$PATH
+export LD_LIBRARY_PATH=/llvm-install/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH
+export CC=/llvm-install/bin/clang
+export CXX=/llvm-install/bin/clang++
+export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/usr/lib/x86_64-linux-gnu/cmake/spdlog
+export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/usr/lib/x86_64-linux-gnu/cmake/opencv4
+colcon build --allow-overriding rcl rclcpp --cmake-force-configure --cmake-args -DCMAKE_EXE_LINKER_FLAGS="-ldl"
+source install/setup.sh
 ```
 
 ##### 4. Run the Given Example.
 
 ```bash
+# If you build the ROS 2 workspace with LLVM, you can use the following instruction to set the spin-wait delay to zero.
+export KMP_BLOCKTIME = 0
+
 ros2 run intra_process_demo two_node_pipeline
 # Alternatively, there are another case study version
 ros2 run intra_process_demo two_node_pipeline_casestudy
 ```
-
-### Usage
-
-## Statistical Information
